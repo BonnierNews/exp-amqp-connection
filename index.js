@@ -138,6 +138,19 @@ function init(behaviour) {
     });
   };
 
+  api.sendToQueue = function (queue, message, meta, cb) {
+    if(typeof meta === "function") cb = meta;
+    cb = cb || function () {};
+    bootstrap(behaviour, api, function (connErr, conn, channel) {
+      if (connErr) {
+        api.emit("error", connErr);
+        return cb(connErr);
+      }
+      var encodedMsg = transform.encode(message, meta);
+      channel.sendToQueue(queue, encodedMsg.buffer, encodedMsg.props, cb);
+    });
+  };
+
   api.deleteQueue = function (queue) {
     bootstrap(behaviour, api, function (connErr, conn, channel) {
       channel.deleteQueue(queue);
