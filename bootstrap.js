@@ -51,7 +51,9 @@ function doConnect(behaviour, listener, callback) {
       savedConns[behaviour.reuse] = null;
     };
     newConnection.on("error", errorHandler);
-    newConnection.on("close", function () {
+    newConnection.on("close", function (err) {
+      if (err) return errorHandler(err);
+
       listener.emit("close");
       savedConns[behaviour.reuse] = null;
     });
