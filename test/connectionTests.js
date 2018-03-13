@@ -281,6 +281,16 @@ Feature("Pubsub", () => {
       // Just do something so the connection is bootstrapped.
       broker.publish("garbage", "garbage", done);
     });
+    And("we have a connection", (done) => {
+      var interval = setInterval(() => {
+        getRabbitConnections((err, connections) => {
+          if(connections.length) {
+            clearInterval(interval);
+            done();
+          }
+        });
+      }, 100);
+    });
 
     And("We delete the connection", (done) => {
       killRabbitConnections();
@@ -306,6 +316,17 @@ Feature("Bootstrapping", () => {
       (cb) => { broker.publish("bogus", "bogus", cb); },
       done);
   });
+  And("we have a connection", (done) => {
+    var interval = setInterval(() => {
+      getRabbitConnections((err, connections) => {
+        if(connections.length) {
+          clearInterval(interval);
+          done();
+        }
+      });
+    }, 100);
+  });
+
   Then("Only one actual connection should be created", (done) => {
     getRabbitConnections((err, conns) => {
       if (err) return done(err);
