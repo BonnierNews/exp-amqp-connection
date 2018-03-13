@@ -1,6 +1,11 @@
+sudo: required
+
 language: node_js
 node_js:
-- 4.3
+  - "lts/*"
 
 services:
-- rabbitmq
+  - docker
+
+script:
+  - npm test
