@@ -1,11 +1,8 @@
-app:
-  build: .
-  entrypoint: /bin/bash -c 
-  links:
-    - rabbitmq:linked-rabbitmq
 rabbitmq:
-  image: rabbitmq:3.5-management
+  image: rabbitmq:3.7-management
   ports:
     - "5672:5672"
     - "15672:15672"
+  environment:
+    - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-rabbitmq_management management_db_cache_multiplier 0 collect_statistics_interval 0
 
