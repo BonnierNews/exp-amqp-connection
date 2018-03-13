@@ -14,6 +14,8 @@ var dummyLogger = {
 };
 
 var defaultBehaviour = {
+  exchangeType: "topic",
+  exchangeOptions: {},
   reuse: "default",
   ack: false,
   confirm: false,
@@ -49,7 +51,8 @@ function init(behaviour) {
           arguments: Object.assign(!queue ? {"x-expires": TMP_Q_TTL} : {}, behaviour.queueArguments)
         };
         var queueName = queue ? queue : getProductName() + "-" + getRandomStr();
-        subChannel.assertExchange(behaviour.exchange, "topic");
+        // Assert exchange for subscriber channel with same options as in publisher (see bootstrap)
+        subChannel.assertExchange(behaviour.exchange, behaviour.exchangeType, behaviour.exchangeOptions);
         subChannel.assertQueue(queueName, queueOpts);
         routingKeys.forEach(function (key) {
           subChannel.bindQueue(queueName, behaviour.exchange, key, {});
@@ -135,6 +138,19 @@ function init(behaviour) {
     });
   };
 
+  api.sendToQueue = function (queue, message, meta, cb) {
+    if(typeof meta === "function") cb = meta;
+    cb = cb || function () {};
+    bootstrap(behaviour, api, function (connErr, conn, channel) {
+      if (connErr) {
+        api.emit("error", connErr);
+        return cb(connErr);
+      }
+      var encodedMsg = transform.encode(message, meta);
+      channel.sendToQueue(queue, encodedMsg.buffer, encodedMsg.props, cb);
+    });
+  };
+
   api.deleteQueue = function (queue) {
     bootstrap(behaviour, api, function (connErr, conn, channel) {
       channel.deleteQueue(queue);
@@ -154,7 +170,7 @@ function init(behaviour) {
   api.shutdown = function (cb) {
     cb = cb || function () {};
     bootstrap(behaviour, api, function (connErr, conn) {
-      if (connErr) return cb();
+      if (connErr) return cb(connErr);
       conn.close(cb);
     });
   };

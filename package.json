@@ -7,7 +7,7 @@
     "Jens Carlén",
     "Pål Edman"
   ],
-  "version": "2.3.3",
+  "version": "2.3.4",
   "scripts": {
     "pretest": "./pretest.sh",
     "test": "mocha",
