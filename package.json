@@ -9,8 +9,8 @@
   ],
   "version": "2.3.3",
   "scripts": {
-    "pretest": "docker-compose build",
-    "test": "docker-compose run app \"cd /app && node_modules/.bin/mocha\"",
+    "pretest": "./pretest.sh",
+    "test": "mocha",
     "posttest": "eslint --cache ."
   },
   "repository": "git://github.com/ExpressenAB/exp-amqp-connection.git",
@@ -20,7 +20,7 @@
   ],
   "license": {
     "type": "MIT",
-    "url": "http://github.com/ExpressenAB/exp-amqp-connection/raw/master/LICENSE"
+    "url": "http://github.com/BonnierNews/exp-amqp-connection/raw/master/LICENSE"
   },
   "main": "index.js",
   "dependencies": {
