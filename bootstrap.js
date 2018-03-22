@@ -49,13 +49,13 @@ function doConnect(behaviour, listener, callback) {
     }
     var errorHandler = function (error) {
       listener.emit("error", error);
+      savedConns[behaviour.reuse] = null;
       if (connectRetries) {
         connectRetries -= 1;
         setTimeout(() => {
-          doConnect(behaviour, listener, callback);
+          connect(behaviour, listener, callback);
         }, 1000);
       }
-      savedConns[behaviour.reuse] = null;
     };
     newConnection.on("error", errorHandler);
     newConnection.on("close", function (err) {
