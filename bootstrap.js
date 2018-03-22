@@ -52,9 +52,10 @@ function doConnect(behaviour, listener, callback) {
       savedConns[behaviour.reuse] = null;
       if (connectRetries) {
         connectRetries -= 1;
-        setTimeout(() => {
+        const reconnectTimer = setTimeout(() => {
           connect(behaviour, listener, callback);
         }, 1000);
+        reconnectTimer.unref();
       }
     };
     newConnection.on("error", errorHandler);
