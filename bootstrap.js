@@ -6,6 +6,7 @@ var EventEmitter = require("events");
 var qs = require("querystring");
 
 var savedConns = {};
+let connectRetries = 3;
 
 function connect(behaviour, listener, callback) {
   if (behaviour.reuse && attemptReuse(behaviour.reuse, callback)) {
@@ -48,6 +49,12 @@ function doConnect(behaviour, listener, callback) {
     }
     var errorHandler = function (error) {
       listener.emit("error", error);
+      if (connectRetries) {
+        connectRetries -= 1;
+        setTimeout(() => {
+          doConnect(behaviour, listener, callback);
+        }, 1000);
+      }
       savedConns[behaviour.reuse] = null;
     };
     newConnection.on("error", errorHandler);
@@ -66,6 +73,7 @@ function doConnect(behaviour, listener, callback) {
       savedConns[behaviour.reuse] = handle;
       reuse.emit("bootstrapped", null, handle);
       listener.emit("connected");
+      if (connectRetries < 3) connectRetries+=1;
       return callback(null, newConnection, newChannel);
     };
     if (behaviour.confirm) {
