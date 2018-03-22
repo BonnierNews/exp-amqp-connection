@@ -73,7 +73,7 @@ function doConnect(behaviour, listener, callback) {
       savedConns[behaviour.reuse] = handle;
       reuse.emit("bootstrapped", null, handle);
       listener.emit("connected");
-      if (connectRetries < 3) connectRetries+=1;
+      connectRetries = 3;
       return callback(null, newConnection, newChannel);
     };
     if (behaviour.confirm) {
