@@ -310,8 +310,8 @@ Feature("Pubsub", () => {
     Then("An error 320 should be raised", () => {
       assert.equal(320, error.code);
     });
-    Then("We wait one second", (done) => {
-      setTimeout(done, 1000);
+    Then("We wait two seconds", (done) => {
+      setTimeout(done, 2000);
     });
   });
 });
