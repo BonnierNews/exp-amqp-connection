@@ -276,15 +276,21 @@ Feature("Pubsub", () => {
   Scenario("Connection removed", () => {
     var broker;
     var error;
+    var once;
 
     after((done) => { shutdown(broker, done); });
-    When("We have a connection", (done) => {
+    When("We have a connection", () => {
       broker = amqp(defaultBehaviour);
       broker.on("error", (err) => {
         error = err;
       });
       // Just do something so the connection is bootstrapped.
-      broker.publish("garbage", "garbage", done);
+      broker.publish("garbage", "garbage", () => {
+        if(!once) once = true;
+      });
+    });
+    And("We publish one message", (done) => {
+      waitForTruthy(() => once, done);
     });
     And("we have a connection", (done) => {
       var interval = setInterval(() => {
@@ -303,6 +309,9 @@ Feature("Pubsub", () => {
     });
     Then("An error 320 should be raised", () => {
       assert.equal(320, error.code);
+    });
+    Then("We wait one second", (done) => {
+      setTimeout(done, 1000);
     });
   });
 });

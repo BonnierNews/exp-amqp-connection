@@ -6,7 +6,7 @@ var EventEmitter = require("events");
 var qs = require("querystring");
 
 var savedConns = {};
-let connectRetries = 3;
+var connectRetries = 3;
 
 function connect(behaviour, listener, callback) {
   if (behaviour.reuse && attemptReuse(behaviour.reuse, callback)) {
@@ -50,17 +50,24 @@ function doConnect(behaviour, listener, callback) {
     var errorHandler = function (error) {
       listener.emit("error", error);
       savedConns[behaviour.reuse] = null;
+    };
+
+    var reconnectHandler = function () {
       if (connectRetries) {
         connectRetries -= 1;
-        const reconnectTimer = setTimeout(() => {
+        var reconnectTimer = setTimeout(function () {
           connect(behaviour, listener, callback);
         }, 1000);
         reconnectTimer.unref();
+        return;
       }
     };
     newConnection.on("error", errorHandler);
     newConnection.on("close", function (err) {
-      if (err) return errorHandler(err);
+      if (err) {
+        reconnectHandler();
+        return errorHandler(err);
+      }
 
       listener.emit("close");
       savedConns[behaviour.reuse] = null;
