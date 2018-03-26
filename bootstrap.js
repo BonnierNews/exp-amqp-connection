@@ -4,6 +4,7 @@ var amqp = require("amqplib/callback_api");
 var url = require("url");
 var EventEmitter = require("events");
 var qs = require("querystring");
+var async = require("async");
 
 var savedConns = {};
 var connectRetries = 3;
@@ -52,15 +53,16 @@ function doConnect(behaviour, listener, callback) {
       savedConns[behaviour.reuse] = null;
     };
 
+    var reconnect = function () {
+      var reconnectTimer = setTimeout(function () {
+        connect(behaviour, listener, callback);
+      }, 1000);
+      reconnectTimer.unref();
+      return;
+    };
+
     var reconnectHandler = function () {
-      if (connectRetries) {
-        connectRetries -= 1;
-        var reconnectTimer = setTimeout(function () {
-          connect(behaviour, listener, callback);
-        }, 1000);
-        reconnectTimer.unref();
-        return;
-      }
+      async.retry({times: connectRetries, interval: 1000}, reconnect);
     };
     newConnection.on("error", errorHandler);
     newConnection.on("close", function (err) {
@@ -81,7 +83,6 @@ function doConnect(behaviour, listener, callback) {
       savedConns[behaviour.reuse] = handle;
       reuse.emit("bootstrapped", null, handle);
       listener.emit("connected");
-      connectRetries = 3;
       return callback(null, newConnection, newChannel);
     };
     if (behaviour.confirm) {
