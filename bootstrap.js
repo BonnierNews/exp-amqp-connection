@@ -60,6 +60,9 @@ function doConnect(behaviour, listener, callback) {
         }, 1000);
         reconnectTimer.unref();
         return;
+      } else {
+        /*eslint no-process-exit:*/
+        process.exit(1); //we missed 3 retries, lets die and hope hosting resurrects us.
       }
     };
     newConnection.on("error", errorHandler);
