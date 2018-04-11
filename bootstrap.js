@@ -40,6 +40,9 @@ function doConnect(behaviour, listener, callback) {
     savedConns[behaviour.reuse] = reuse;
   }
   var opts = {clientProperties: {product: behaviour.productName}};
+  if (behaviour.connectionName) {
+    opts.clientProperties.connection_name = behaviour.connectionName; //eslint-disable-line camelcase
+  }
   amqp.connect(amqpUrl, opts, function (connErr, newConnection) {
     if (connErr) {
       savedConns[behaviour.reuse] = null;
