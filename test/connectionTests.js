@@ -24,6 +24,7 @@ Feature("Connect", () => {
     });
   });
 
+
   Scenario("Bad connection", () => {
     var broker;
     var badPortBehaviour;
@@ -117,7 +118,6 @@ Feature("Pubsub", () => {
       assert.deepEqual(messages, ["m1", "m2"]);
     });
   });
-
 
   Scenario("Unparsable message", () => {
     var nMessages = 0;
@@ -314,6 +314,55 @@ Feature("Pubsub", () => {
       setTimeout(done, 2000);
     });
   });
+
+});
+
+Feature("Callback throws exception shouldn't crash everything", () => {
+  Scenario("Cb throws exception", () => {
+    var messages = [];
+    var broker;
+    var handler = (message, meta, notify) => {
+      messages.push(message.testData);
+      notify.ack();
+    };
+    var maybeFoo;
+    var allDone;
+
+    function fooThrower() {
+      throw new Error("foo");
+    }
+
+    Given("We have a connection", () => {
+      broker = init(defaultBehaviour);
+      broker.on("callback_error", (e) => {
+        maybeFoo = e;
+        allDone();
+      });
+    });
+
+    And("We create a subscription for routing key 1", (done) => {
+      broker.subscribe("cbthrowsbug", "cbthrowsbugq", handler, done);
+    });
+
+    When("We publish a message with routing key 1, passing a throwing callback", (done) => {
+      allDone = done;
+      broker.publish("cbthrowsbug", {testData: "m1"}, () => {
+        fooThrower();
+      });
+    });
+
+    Then("the message should have been delivered", () => {
+      assert.deepEqual(["m1"], messages);
+    });
+
+    And("a foo should have been thrown", () => {
+      assert("foo", maybeFoo.message);
+    });
+
+    after((done) => shutdown(broker, done));
+  });
+
+
 });
 
 Feature("Bootstrapping", () => {

@@ -69,7 +69,7 @@ function init(behaviour) {
           try {
             decodedMessage = transform.decode(message);
           } catch (decodeErr) {
-            behaviour.logger.error("Ignoring un-decodable message:", message, "reason:", decodeErr);
+            behaviour.logger.error(`Ignoring un-decodable message: ${message}, reason: ${decodeErr.toString()}`);
             if (behaviour.ack) {
               ackFun(message);
             }
@@ -86,6 +86,7 @@ function init(behaviour) {
         if (err) {
           api.emit("error", err);
           if (behaviour.resubscribeOnError && !resubTimer) {
+            behaviour.logger.error(`Doing resubscribe due to error: ${err.toString()}`);
             resubTimer = setTimeout(function () {
               api.subscribe(routingKeyOrKeys, queue, handler);
             }, 5000);
@@ -97,7 +98,7 @@ function init(behaviour) {
 
   api.publish = function (routingKey, message, meta, cb) {
     if(typeof meta === "function") cb = meta;
-    cb = cb || function () {};
+    cb = wrapCb(cb);
     bootstrap(behaviour, api, function (connErr, conn, channel) {
       if (connErr) {
         api.emit("error", connErr);
@@ -110,8 +111,12 @@ function init(behaviour) {
 
   api.delayedPublish = function (routingKey, message, delay, meta, cb) {
     if(typeof meta === "function") cb = meta;
-    cb = cb || function () {};
+    cb = wrapCb(cb);
     bootstrap(behaviour, api, function (connErr, conn, channel) {
+      if (connErr) {
+        api.emit("error", connErr);
+        return cb(connErr);
+      }
       var name = behaviour.exchange + "-exp-amqp-delayed-" + delay;
       channel.assertExchange(name, "fanout", {
         durable: true,
@@ -140,7 +145,7 @@ function init(behaviour) {
 
   api.sendToQueue = function (queue, message, meta, cb) {
     if(typeof meta === "function") cb = meta;
-    cb = cb || function () {};
+    cb = wrapCb(cb);
     bootstrap(behaviour, api, function (connErr, conn, channel) {
       if (connErr) {
         api.emit("error", connErr);
@@ -158,6 +163,7 @@ function init(behaviour) {
   };
 
   api.purgeQueue = function (queue, cb) {
+    cb = wrapCb(cb);
     bootstrap(behaviour, api, function (connErr, conn, channel) {
       if (connErr) {
         api.emit("error", connErr);
@@ -168,12 +174,29 @@ function init(behaviour) {
   };
 
   api.shutdown = function (cb) {
-    cb = cb || function () {};
+    cb = wrapCb(cb);
     bootstrap(behaviour, api, function (connErr, conn) {
       if (connErr) return cb(connErr);
       conn.close(cb);
     });
   };
+
+  function wrapCb(cb) {
+    let wrappedCb;
+    if (!cb) {
+      wrappedCb = function () {};
+    } else {
+      wrappedCb = (...args) => {
+        try {
+          return cb(...args);
+        } catch (e) {
+          api.emit("callback_error", e);
+          return e;
+        }
+      };
+    }
+    return wrappedCb;
+  }
 
   return api;
 }

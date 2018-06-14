@@ -6,7 +6,6 @@ var EventEmitter = require("events");
 var qs = require("querystring");
 
 var savedConns = {};
-var connectRetries = 3;
 
 function connect(behaviour, listener, callback) {
   if (behaviour.reuse && attemptReuse(behaviour.reuse, callback)) {
@@ -55,25 +54,9 @@ function doConnect(behaviour, listener, callback) {
       savedConns[behaviour.reuse] = null;
     };
 
-    var reconnectHandler = function () {
-      if (connectRetries) {
-        connectRetries -= 1;
-        var reconnectTimer = setTimeout(function () {
-          connect(behaviour, listener, callback);
-        }, 1000);
-        reconnectTimer.unref();
-        return;
-      } else {
-        /*eslint no-process-exit:*/
-        process.exit(1); //we missed 3 retries, lets die and hope hosting resurrects us.
-      }
-    };
     newConnection.on("error", errorHandler);
     newConnection.on("close", function (err) {
-      if (err) {
-        reconnectHandler();
-        return errorHandler(err);
-      }
+      if (err) return errorHandler(err);
 
       listener.emit("close");
       savedConns[behaviour.reuse] = null;
@@ -87,7 +70,6 @@ function doConnect(behaviour, listener, callback) {
       savedConns[behaviour.reuse] = handle;
       reuse.emit("bootstrapped", null, handle);
       listener.emit("connected");
-      connectRetries = 3;
       return callback(null, newConnection, newChannel);
     };
     if (behaviour.confirm) {
