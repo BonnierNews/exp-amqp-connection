@@ -98,11 +98,15 @@ function init(behaviour) {
   };
 
   api.unsubscribeAll = function (cb) {
+    cb = wrapCb(cb);
     async.series(
       consumers.map(({channel, consumerTag}) => innerCb =>
         channel.cancel(consumerTag, innerCb)
       ),
-      wrapCb(cb)
+      (...args) => {
+        consumers.slice(0, consumers.length);
+        return cb(...args);
+      }
     );
   };
 
