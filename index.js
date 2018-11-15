@@ -29,6 +29,7 @@ var defaultBehaviour = {
 
 function init(behaviour) {
   var api = new EventEmitter();
+  var consumers = [];
   behaviour = Object.assign({}, defaultBehaviour, behaviour);
 
   api.subscribeTmp = function (routingKeyOrKeys, handler, cb) {
@@ -78,7 +79,7 @@ function init(behaviour) {
           handler(decodedMessage, message, {ack: ackFun, nack: nackFun});
         };
         var consumeOpts = {noAck: !behaviour.ack};
-        subChannel.consume(queueName, amqpHandler, consumeOpts, cb);
+        subChannel.consume(queueName, amqpHandler, consumeOpts, wrapConsumeCb(subChannel, cb));
         api.emit("subscribed", {key: routingKeyOrKeys, queue: queueName});
       });
 
@@ -94,6 +95,19 @@ function init(behaviour) {
         }
       }
     });
+  };
+
+  api.unsubscribeAll = function (cb) {
+    cb = wrapCb(cb);
+    async.series(
+      consumers.map(({channel, consumerTag}) => innerCb =>
+        channel.cancel(consumerTag, innerCb)
+      ),
+      (...args) => {
+        consumers.slice(0, consumers.length);
+        return cb(...args);
+      }
+    );
   };
 
   api.publish = function (routingKey, message, meta, cb) {
@@ -180,6 +194,15 @@ function init(behaviour) {
       conn.close(cb);
     });
   };
+
+  function wrapConsumeCb(channel, cb) {
+    cb = wrapCb(cb);
+    return (err, ok) => {
+      const {consumerTag} = ok;
+      consumers.push({channel, consumerTag});
+      cb(err, ok);
+    };
+  }
 
   function wrapCb(cb) {
     let wrappedCb;

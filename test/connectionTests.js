@@ -90,6 +90,43 @@ Feature("Pubsub", () => {
     });
   });
 
+  Scenario("Unsubscribe all handlers", () => {
+    let broker;
+    let receivedOnUnsubscribed;
+    let receivedOnResubscribed;
+
+    after((done) => shutdown(broker, done));
+    Given("We have a connection", () => {
+      broker = init(defaultBehaviour);
+    });
+    And("We create a subscription", (done) => {
+      broker.subscribe("testRoutingKey", "persistent-queue", (msg) => {
+        receivedOnUnsubscribed = msg;
+      }, done);
+    });
+    And("We unsubscribe all subscriptions", (done) => {
+      broker.unsubscribeAll(done);
+    });
+    When("We publish a message and wait 500 ms", (done) => {
+      broker.publish("testRoutingKey", "message");
+      setTimeout(done, 500);
+    });
+    And("We resubscribe", (done) => {
+      broker.subscribe("testRoutingKey", "persistent-queue", (msg) => {
+        receivedOnResubscribed = msg;
+      }, done);
+    });
+    Then("It should not have arrived on the unsubscribed handler", () => {
+      assert.deepEqual(receivedOnUnsubscribed, undefined);
+    });
+    And("We wait for the message to arrive", (done) => {
+      waitForTruthy(() => receivedOnResubscribed, done);
+    });
+    And("It should have arrived on the resubscribed handler", () => {
+      assert.deepEqual(receivedOnResubscribed, "message");
+    });
+  });
+
   Scenario("Multiple routing keys", () => {
     var messages = [];
     var broker;
