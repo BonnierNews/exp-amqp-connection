@@ -23,11 +23,16 @@ Feature("Bootstrapping", () => {
         done);
     });
     Then("Only one actual connection should be created", (done) => {
-      utils.getRabbitConnections((err, conns) => {
-        if (err) return done(err);
-        assert.equal(1, conns.length);
-        done();
-      });
+      const interval = setInterval(() => {
+          utils.getRabbitConnections((err, connections) => {
+            if (err) return done(err);
+            if (connections.length) {
+              clearInterval(interval);
+              assert.equal(connections.length, 1);
+              return done();
+            }
+          });
+      }, 100);
     });
   });
 
