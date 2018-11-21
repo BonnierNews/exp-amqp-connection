@@ -62,7 +62,7 @@ Feature("Connect", () => {
 
 Feature("Pubsub", () => {
   var pubTests = [
-    {type: "buffer", data: new Buffer("Hello"), result: "Hello"},
+    {type: "buffer", data: Buffer.from("Hello"), result: "Hello"},
     {type: "string", data: "Hello", result: "Hello"},
     {type: "object", data: {greeting: "Hello"}, result: {greeting: "Hello"}}
   ];
@@ -100,7 +100,7 @@ Feature("Pubsub", () => {
       broker = init(defaultBehaviour);
     });
     And("We create a subscription", (done) => {
-      broker.subscribe("testRoutingKey", "persistent-queue", (msg) => {
+      broker.subscribe("testUnsubscribeRoutingKey", "persistent-queue", (msg) => {
         receivedOnUnsubscribed = msg;
       }, done);
     });
@@ -108,11 +108,11 @@ Feature("Pubsub", () => {
       broker.unsubscribeAll(done);
     });
     When("We publish a message and wait 500 ms", (done) => {
-      broker.publish("testRoutingKey", "message");
+      broker.publish("testUnsubscribeRoutingKey", "message");
       setTimeout(done, 500);
     });
     And("We resubscribe", (done) => {
-      broker.subscribe("testRoutingKey", "persistent-queue", (msg) => {
+      broker.subscribe("testUnsubscribeRoutingKey", "persistent-queue", (msg) => {
         receivedOnResubscribed = msg;
       }, done);
     });
@@ -178,7 +178,7 @@ Feature("Pubsub", () => {
           channel.publish(
             defaultBehaviour.exchange,
             "rk1",
-            new Buffer("Hej knekt"),
+            Buffer.from("Hej knekt"),
             {contentType: "application/json"});
           done();
         });
@@ -240,12 +240,12 @@ Feature("Pubsub", () => {
       broker = init(defaultBehaviour);
     });
     And("We create a subscription without specifying a queue name", (done) => {
-      broker.subscribeTmp("testRoutingKey", (msg) => {
+      broker.subscribeTmp("testTempRoutingKey", (msg) => {
         received = msg;
       }, done);
     });
     And("We publish a message", (done) => {
-      broker.publish("testRoutingKey", "Hi there!");
+      broker.publish("testTempRoutingKey", "Hi there!");
       waitForTruthy(() => received, done);
     });
     Then("It should arrive correctly", () => {
@@ -297,10 +297,10 @@ Feature("Pubsub", () => {
       broker.on("error", (err) => {
         error = err;
       });
-      broker.subscribe("testRoutingKey", "testQ2", () => {}, done);
+      broker.subscribe("testCancelRoutingKey", "testCancelQ2", () => {}, done);
     });
     And("We delete the queue", (done) => {
-      deleteRabbitQueue("testQ2", (err) => {
+      deleteRabbitQueue("testCancelQ2", (err) => {
         if (err) return done(err);
         waitForTruthy(() => error, done);
       });
@@ -358,12 +358,10 @@ Feature("Callback throws exception shouldn't crash everything", () => {
   Scenario("Cb throws exception", () => {
     var messages = [];
     var broker;
-    var handler = (message, meta, notify) => {
+    var handler = (message) => {
       messages.push(message.testData);
-      notify.ack();
     };
     var maybeFoo;
-    var allDone;
 
     function fooThrower() {
       throw new Error("foo");
@@ -373,7 +371,6 @@ Feature("Callback throws exception shouldn't crash everything", () => {
       broker = init(defaultBehaviour);
       broker.on("callback_error", (e) => {
         maybeFoo = e;
-        allDone();
       });
     });
 
@@ -382,18 +379,16 @@ Feature("Callback throws exception shouldn't crash everything", () => {
     });
 
     When("We publish a message with routing key 1, passing a throwing callback", (done) => {
-      allDone = done;
-      broker.publish("cbthrowsbug", {testData: "m1"}, () => {
-        fooThrower();
-      });
+      broker.publish("cbthrowsbug", {testData: "m1"}, fooThrower);
+      waitForTruthy(() => maybeFoo && messages.length > 0, done);
     });
 
-    Then("the message should have been delivered", () => {
-      assert.deepEqual(["m1"], messages);
-    });
-
-    And("a foo should have been thrown", () => {
+    Then("a foo should have been thrown", () => {
       assert("foo", maybeFoo.message);
+    });
+
+    And("the message should have been delivered", () => {
+      assert.deepEqual(["m1"], messages);
     });
 
     after((done) => shutdown(broker, done));
@@ -445,12 +440,12 @@ Feature("Delayed publish", () => {
       broker = init(defaultBehaviour);
     });
     And("We create a subscription", (done) => {
-      broker.subscribeTmp("testRoutingKey", (msg) => {
+      broker.subscribeTmp("testDelayedRoutingKey", (msg) => {
         received = msg;
       }, done);
     });
     And("We publish a message with a 2.5 second deplay", () => {
-      broker.delayedPublish("testRoutingKey", "Hello hi", 2500);
+      broker.delayedPublish("testDelayedRoutingKey", "Hello hi", 2500);
     });
 
     When("We wait one second", (done) => {
