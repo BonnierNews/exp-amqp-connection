@@ -240,15 +240,34 @@ Feature("Subscribe", () => {
   Scenario("Connection removed", () => {
     let broker;
     let error;
+    let once;
 
     after((done) => utils.shutdown(broker, done));
-    When("We have a connection", (done) => {
+    When("We have a connection", () => {
       broker = utils.init();
       broker.on("error", (err) => {
         error = err;
       });
       // Just do something so the connection is bootstrapped.
-      broker.publish("garbage", "garbage", done);
+      broker.publish("garbage", "garbage", () => {
+        if (!once) once = true;
+      });
+    });
+
+    And("We publish one message", (done) => {
+      utils.waitForTruthy(() => once, done);
+    });
+
+    And("we have a connection", (done) => {
+      const interval = setInterval(() => {
+        utils.getRabbitConnections((err, connections) => {
+          if (err) return done(err);
+          if (connections.length) {
+            clearInterval(interval);
+            done();
+          }
+        });
+      }, 100);
     });
 
     And("We delete the connection", (done) => {
