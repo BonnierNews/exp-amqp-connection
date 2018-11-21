@@ -30,7 +30,6 @@ Feature("Dead letter exchange", () => {
   });
 
   And("We create a subscription that will nack one message without requeueing", (done) => {
-    broker.on("subscribed", () => done());
     broker.subscribeTmp("testNackRoutingKey", (msg, meta, ack) => {
       received.push({
         msg: msg,
@@ -49,17 +48,16 @@ Feature("Dead letter exchange", () => {
       if (requeued) {
         requeues++;
       }
-    });
+    }, done);
   });
   And("We create a subscription to the dead letter exchange", (done) => {
-    deadLetterBroker.on("subscribed", () => done());
     deadLetterBroker.subscribeTmp("testNackRoutingKey", (msg, meta, ack) => {
       deadLetterReceived.push({
         msg: msg,
         meta: meta,
         ack: ack
       });
-    });
+    }, done);
   });
   When("We publish 3 messages", () => {
 
