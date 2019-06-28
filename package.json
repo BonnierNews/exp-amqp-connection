@@ -5,9 +5,10 @@
   "contributors": [
     "Mattias Norlan1der <mattias.norlander@gmail.com>",
     "Jens Carlén",
-    "Pål Edman"
+    "Pål Edman",
+    "Markus Ekholm"
   ],
-  "version": "2.9.1",
+  "version": "3.0.0",
   "scripts": {
     "pretest": "./pretest.sh",
     "test": "mocha",

@@ -24,7 +24,8 @@ var defaultBehaviour = {
   resubscribeOnError: true,
   queueArguments: {},
   prefetch: 20,
-  logger: dummyLogger
+  logger: dummyLogger,
+  persistent: true
 };
 
 function init(behaviour) {
@@ -100,9 +101,7 @@ function init(behaviour) {
   api.unsubscribeAll = function (cb) {
     cb = wrapCb(cb);
     async.series(
-      consumers.map(({channel, consumerTag}) => innerCb =>
-        channel.cancel(consumerTag, innerCb)
-      ),
+      consumers.map(({channel, consumerTag}) => (innerCb) => channel.cancel(consumerTag, innerCb)),
       (...args) => {
         consumers.slice(0, consumers.length);
         return cb(...args);
@@ -111,20 +110,20 @@ function init(behaviour) {
   };
 
   api.publish = function (routingKey, message, meta, cb) {
-    if(typeof meta === "function") cb = meta;
+    if (typeof meta === "function") cb = meta;
     cb = wrapCb(cb);
     bootstrap(behaviour, api, function (connErr, conn, channel) {
       if (connErr) {
         api.emit("error", connErr);
         return cb(connErr);
       }
-      var encodedMsg = transform.encode(message, meta);
+      var encodedMsg = transform.encode(message, meta, behaviour.persistent);
       channel.publish(behaviour.exchange, routingKey, encodedMsg.buffer, encodedMsg.props, cb);
     });
   };
 
   api.delayedPublish = function (routingKey, message, delay, meta, cb) {
-    if(typeof meta === "function") cb = meta;
+    if (typeof meta === "function") cb = meta;
     cb = wrapCb(cb);
     bootstrap(behaviour, api, function (connErr, conn, channel) {
       if (connErr) {
@@ -145,27 +144,31 @@ function init(behaviour) {
           "x-expires": delay + 60000
         }
       });
-      var encodedMsg = transform.encode(message, meta);
-      async.series([
-        function (done) {
-          channel.bindQueue(name, name, "#", {}, done);
-        },
-        function (done) {
-          channel.publish(name, routingKey, encodedMsg.buffer, encodedMsg.props, done);
-        }
-      ], cb);
+      var encodedMsg = transform.encode(message, meta, behaviour.persistent);
+      async.series(
+        [
+          function (done) {
+            channel.bindQueue(name, name, "#", {}, done);
+          },
+          function (done) {
+            if (behaviour.persistent) encodedMsg.props.persistent = true;
+            channel.publish(name, routingKey, encodedMsg.buffer, encodedMsg.props, done);
+          }
+        ],
+        cb
+      );
     });
   };
 
   api.sendToQueue = function (queue, message, meta, cb) {
-    if(typeof meta === "function") cb = meta;
+    if (typeof meta === "function") cb = meta;
     cb = wrapCb(cb);
     bootstrap(behaviour, api, function (connErr, conn, channel) {
       if (connErr) {
         api.emit("error", connErr);
         return cb(connErr);
       }
-      var encodedMsg = transform.encode(message, meta);
+      var encodedMsg = transform.encode(message, meta, behaviour.persistent);
       channel.sendToQueue(queue, encodedMsg.buffer, encodedMsg.props, cb);
     });
   };
@@ -227,7 +230,7 @@ function init(behaviour) {
 function getProductName() {
   try {
     var pkg = require(process.cwd() + "/package.json");
-    var nodeEnv = (process.env.NODE_ENV || "development");
+    var nodeEnv = process.env.NODE_ENV || "development";
     return pkg.name + "-" + nodeEnv;
   } catch (e) {
     return "exp-amqp-connection";
@@ -235,7 +238,10 @@ function getProductName() {
 }
 
 function getRandomStr() {
-  return crypto.randomBytes(20).toString("hex").slice(1, 8);
+  return crypto
+    .randomBytes(20)
+    .toString("hex")
+    .slice(1, 8);
 }
 
 module.exports = init;
