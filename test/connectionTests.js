@@ -461,6 +461,37 @@ Feature("Delayed publish", () => {
       assert.equal("Hello hi", received);
     });
   });
+
+  Scenario("2.5 second delay when publishing directly to queue", () => {
+    var broker;
+    let received = null;
+
+    after((done) => shutdown(broker, done));
+    When("We have a connection", () => {
+      broker = init(defaultBehaviour);
+    });
+    And("We create a subscription", (done) => {
+      broker.subscribe("testDelayedQueue", "persistent-delayed-queue", (msg) => {
+        received = msg;
+      }, done);
+    });
+    And("We publish a message with a 2.5 second deplay", () => {
+      broker.delayedSendToQueue("persistent-delayed-queue", "Foo bar", 2500);
+    });
+
+    When("We wait one second", (done) => {
+      setTimeout(done, 1000);
+    });
+    Then("It should not have arrived yet", () => {
+      assert.equal(null, received);
+    });
+    When("We wait two more seconds", (done) => {
+      setTimeout(done, 2000);
+    });
+    Then("The message should have arrived", () => {
+      assert.equal("Foo bar", received);
+    });
+  });
 });
 
 Feature("Multiple connections", () => {

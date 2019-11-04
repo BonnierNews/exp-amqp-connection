@@ -173,6 +173,35 @@ function init(behaviour) {
     });
   };
 
+  api.delayedSendToQueue = function (queue, message, delay, meta, cb) {
+    if (typeof meta === "function") cb = meta;
+    cb = wrapCb(cb);
+    bootstrap(behaviour, api, function (connErr, conn, channel) {
+      if (connErr) {
+        api.emit("error", connErr);
+        return cb(connErr);
+      }
+      var encodedMsg = transform.encode(message, meta, behaviour.persistent);
+      var exchangeName = behaviour.exchange + "-exp-amqp-delayed-queue-" + delay;
+      var queueName = `${exchangeName}-queue`;
+      channel.assertExchange(exchangeName, "fanout", {durable: true});
+      channel.assertQueue(queueName, {
+        durable: true,
+        arguments: {
+          "x-dead-letter-exchange": "", // default exchange, i.e. when dead-lettering something with routing key X it is sent back to queue X
+          "x-message-ttl": delay
+        }
+      });
+      channel.bindQueue(queueName, exchangeName, "#", {}, (err) => {
+        if (err) {
+          api.emot("error", err);
+          return cb(err);
+        }
+        channel.publish(exchangeName, queue, encodedMsg.buffer, encodedMsg.props, cb);
+        });
+      });
+    };
+
   api.deleteQueue = function (queue) {
     bootstrap(behaviour, api, function (connErr, conn, channel) {
       channel.deleteQueue(queue);
