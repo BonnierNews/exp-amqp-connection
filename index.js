@@ -194,7 +194,7 @@ function init(behaviour) {
       });
       channel.bindQueue(queueName, exchangeName, "#", {}, (err) => {
         if (err) {
-          api.emot("error", err);
+          api.emit("error", err);
           return cb(err);
         }
         channel.publish(exchangeName, queue, encodedMsg.buffer, encodedMsg.props, cb);
