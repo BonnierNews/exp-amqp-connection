@@ -209,7 +209,7 @@ function init(behaviour) {
         api.emit("error", connErr);
         return cb(connErr);
       }
-      channel.deleteQueue(queue, cb);
+      channel.deleteQueue(queue, {}, cb);
     });
   };
 
