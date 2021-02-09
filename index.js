@@ -202,9 +202,14 @@ function init(behaviour) {
       });
     };
 
-  api.deleteQueue = function (queue) {
+  api.deleteQueue = function (queue, cb) {
+    cb = wrapCb(cb);
     bootstrap(behaviour, api, function (connErr, conn, channel) {
-      channel.deleteQueue(queue);
+      if (connErr) {
+        api.emit("error", connErr);
+        return cb(connErr);
+      }
+      channel.deleteQueue(queue, cb);
     });
   };
 
